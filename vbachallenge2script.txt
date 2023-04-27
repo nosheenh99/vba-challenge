@@ -1,0 +1,161 @@
+Sub Stock_Data()
+    Dim Curr_WrkShtName As String
+    
+    Dim Curr_WrkSht As Worksheet
+    
+    Dim LRow_Set1 As Long
+    Dim Rinc_Set2 As Long
+    Dim LngA As Long
+    
+    Dim Open_Value As Variant
+    Dim Store_TStockVol As Variant
+    Dim Greatest_Inc_Ticker As Variant
+    Dim Greatest_Inc_Percent As Variant
+    Dim Greatest_Dec_Ticker As Variant
+    Dim Greatest_Dec_Percent As Variant
+    Dim Greatest_TotalVol_Ticker As Variant
+    Dim Greatest_TotalVol As Variant
+    
+    'Disabling all alerts and events
+    Application.DisplayAlerts = False
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.CutCopyMode = False
+    
+    With ThisWorkbook
+        'Looping through each worksheet within the workbook
+        For Each Curr_WrkSht In .Worksheets
+        
+            'Storing the current or active worksheet name
+            Curr_WrkShtName = Curr_WrkSht.Name
+            
+            With .Sheets(Curr_WrkShtName)
+                .Range("I2:AZ1000000").Cells.Clear
+                
+                'Storing the last non-blank row count
+                LRow_Set1 = .Range("A" & Rows.Count).End(xlUp).Row
+                
+                'Initializing the header names
+                .Cells(1, "I") = "Ticker"
+                .Cells(1, "J") = "Yearly Change Difference"
+                .Cells(1, "K") = "Percent Change"
+                .Cells(1, "L") = "Total Stock Volume"
+                .Cells(1, "P") = "Ticker"
+                .Cells(1, "Q") = "Value"
+                .Cells(2, "O") = "Greatest % Increase"
+                .Cells(3, "O") = "Greatest % Decrease"
+                .Cells(4, "O") = "Greatest Total Volume"
+                
+                'Initializing the Increment variable
+                Rinc_Set2 = 2
+                
+                'Looping through the rows from column A through G and pasting the unique tickers and other values from column I
+                For LngA = 2 To LRow_Set1
+                    Open_Value = .Cells(Rinc_Set2, "C").Value
+                    If .Cells(LngA + 1, "A").Value <> .Cells(LngA, "A").Value Then
+                        .Cells(Rinc_Set2, "I").Value = .Cells(LngA, "A").Value 'Updating the Ticker
+                        .Cells(Rinc_Set2, "J").Value = .Cells(LngA, "F").Value - Open_Value 'Updating the Yearly change Formula:= (<Close> value for end of year) - (<Open> value for start of year)
+                        .Cells(Rinc_Set2, "K").Value = Format(((.Cells(LngA, "F").Value - Open_Value) / Open_Value), "0.00%") 'Calculating the growth percentage Formula:= (<Close>-<Open>)/<Open>
+            
+                        Store_TStockVol = Application.SumIfs(.Range("G:G"), .Range("A:A"), .Cells(Rinc_Set2, "I")) 'Storing the Total Stock Volume for each ticker
+                        If Not IsError(Store_TStockVol) Then ' Checking if there are any error returned by the SUMIFS formula
+                            .Cells(Rinc_Set2, "L").Value = Store_TStockVol
+                        Else
+                            .Cells(Rinc_Set2, "L").Value = ""
+                        End If
+                        Rinc_Set2 = Rinc_Set2 + 1
+                    End If
+                Next LngA
+                
+                'Applying conditional formatting on Column J when values are less zero to colour Red
+                .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions.Add Type:=xlExpression, Formula1:="=$J2<0"
+                With .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions(1).Interior
+                    .PatternColorIndex = xlAutomatic
+                    .Color = 255
+                    .TintAndShade = 0
+                End With
+                .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions(1).StopIfTrue = False
+                
+                'Applying conditional formatting on Column J when values are less zero to colour Green
+                .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions.Add Type:=xlExpression, Formula1:="=$J2>0"
+                With .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions(2).Interior
+                    .PatternColorIndex = xlAutomatic
+                    .Color = 65280
+                    .TintAndShade = 0
+                End With
+                .Range("J2:J" & .Range("J" & Rows.Count).End(xlUp).Row).FormatConditions(1).StopIfTrue = False
+                
+                'Applying sorting to identify the Greatest % Increase,Greatest % Decrease and Greatest Total Stock Volume
+                .Sort.SortFields.Clear
+                .Sort.SortFields.Add2 Key:=Range("K2:K" & LRow_Set1), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption:=xlSortNormal
+                With .Sort
+                    .SetRange Range("I1:L" & LRow_Set1)
+                    .Header = xlYes
+                    .MatchCase = False
+                    .Orientation = xlTopToBottom
+                    .SortMethod = xlPinYin
+                    .Apply
+                End With
+                
+                Greatest_Inc_Ticker = .Cells(2, "I")
+                Greatest_Inc_Percent = .Cells(2, "K")
+                .Cells(2, "P") = Greatest_Inc_Ticker
+                .Cells(2, "Q") = Format(Greatest_Inc_Percent, "0.00%")
+                
+                .Sort.SortFields.Clear
+                .Sort.SortFields.Add2 Key:=Range("K2:K" & LRow_Set1), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+                With .Sort
+                    .SetRange Range("I1:L" & LRow_Set1)
+                    .Header = xlYes
+                    .MatchCase = False
+                    .Orientation = xlTopToBottom
+                    .SortMethod = xlPinYin
+                    .Apply
+                End With
+                
+                Greatest_Dec_Ticker = .Cells(2, "I")
+                Greatest_Dec_Percent = .Cells(2, "K")
+                .Cells(3, "P") = Greatest_Dec_Ticker
+                .Cells(3, "Q") = Format(Greatest_Dec_Percent, "0.00%")
+                
+                .Sort.SortFields.Clear
+                .Sort.SortFields.Add2 Key:=Range("L2:L" & LRow_Set1), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption:=xlSortNormal
+                With .Sort
+                    .SetRange Range("I1:L" & LRow_Set1)
+                    .Header = xlYes
+                    .MatchCase = False
+                    .Orientation = xlTopToBottom
+                    .SortMethod = xlPinYin
+                    .Apply
+                End With
+                
+                Greatest_TotalVol_Ticker = .Cells(2, "I")
+                Greatest_TotalVol = .Cells(2, "L")
+                .Cells(4, "P") = Greatest_TotalVol_Ticker
+                .Cells(4, "Q") = Format(Greatest_TotalVol, "0")
+                
+                .Sort.SortFields.Clear
+                .Sort.SortFields.Add2 Key:=Range("I2:I" & LRow_Set1), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+                With .Sort
+                    .SetRange Range("I1:L" & LRow_Set1)
+                    .Header = xlYes
+                    .MatchCase = False
+                    .Orientation = xlTopToBottom
+                    .SortMethod = xlPinYin
+                    .Apply
+                End With
+                
+                'Applying Autofit on columns
+                .Range("A:Q").EntireColumn.AutoFit
+            End With
+        Next Curr_WrkSht
+    End With
+    
+    MsgBox "Task Complete", vbInformation
+    
+    'Enabling all alerts and events
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.CutCopyMode = True
+End Sub
